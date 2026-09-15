@@ -10,17 +10,20 @@ const {
   EmbedBuilder, 
   ChannelType, 
   PermissionFlagsBits,
-  AttachmentBuilder
+  AttachmentBuilder,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require('discord.js');
 const fs = require('fs');
 let config = require('./config.json');
 
-// Servidor Web para mantener el Web Service en la capa gratuita de Render
+// Servidor Web para el plan gratuito de Render
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot activo 24/7');
 }).listen(process.env.PORT || 10000, () => {
-  console.log('Servidor HTTP iniciado correctamente para el plan gratuito.');
+  console.log('Servidor HTTP iniciado correctamente.');
 });
 
 const client = new Client({
@@ -31,6 +34,26 @@ const client = new Client({
   ]
 });
 
+// Definición de Comandos Slash para el menú emergente de Discord
+const commands = [
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('Configura el panel de tickets')
+    .addRoleOption(opt => opt.setName('rol').setDescription('Rol de soporte').setRequired(true))
+    .addStringOption(opt => opt.setName('categoria').setDescription('ID de la categoría').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('setlogs')
+    .setDescription('Crea el canal automático para guardar logs'),
+  new SlashCommandBuilder()
+    .setName('setpanel')
+    .setDescription('Configura título y descripción del panel')
+    .addStringOption(opt => opt.setName('texto').setDescription('Título | Descripción').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('setrespuesta')
+    .setDescription('Configura la respuesta automática dentro del ticket')
+    .addStringOption(opt => opt.setName('texto').setDescription('Título | Texto con {mensaje}').setRequired(true))
+];
+
 function saveConfig() {
   fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
 }
@@ -39,11 +62,23 @@ function formatLogsChannelName() {
   return "📁⁃l𝗼g𝘀⁃t𝗶𝗰𝗸𝗲𝘁𝘀"; 
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`========================================`);
   console.log(`Bot iniciado con éxito como: ${client.user.tag}`);
-  console.log(`Prefijo configurado: /`);
   console.log(`========================================`);
+
+  // Registrar comandos Slash globales en Discord
+  const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+  try {
+    console.log('Cargando comandos slash en Discord...');
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    console.log('¡Comandos Slash cargados correctamente!');
+  } catch (error) {
+    console.error('Error al registrar comandos slash:', error);
+  }
 });
 
 client.on('messageCreate', async (message) => {
@@ -278,5 +313,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// LOGIN OBLIGATORIO MEDIANTE VARIABLE DE ENTORNO EN RENDER
 client.login(process.env.BOT_TOKEN);
