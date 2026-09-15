@@ -1,3 +1,4 @@
+const http = require('http');
 const { 
   Client, 
   GatewayIntentBits, 
@@ -13,6 +14,14 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 let config = require('./config.json');
+
+// Servidor Web para mantener el Web Service en la capa gratuita de Render
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot activo 24/7');
+}).listen(process.env.PORT || 10000, () => {
+  console.log('Servidor HTTP iniciado correctamente para el plan gratuito.');
+});
 
 const client = new Client({
   intents: [
