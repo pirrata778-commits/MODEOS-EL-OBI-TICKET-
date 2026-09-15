@@ -26,35 +26,20 @@ function saveConfig() {
   fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
 }
 
-// Transformador de texto para fuentes especiales en Discord
-function formatLogsChannelName(text) {
-  // Mapa de caracteres estilo Negrita/Sans-Serif Bold Unicode
-  const fontMap = {
-    'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴',
-    'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻',
-    'o': '𝗼', 'p': '𝗽', 'q': ' drain', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂',
-    'v': '𝘃', 'w': '𝘄', 'x': '𝘅', 'y': '𝘆', 'z': '𝘇', '-': '⁃', 'l': '𝗹',
-    'o': '𝗼', 'g': '𝗴', 's': '𝘀'
-  };
-
-  // Puedes cambiar el nombre base e iconos del canal aquí:
-  const baseName = "📁⁃l𝗼g𝘀⁃t𝗶𝗰𝗸𝗲𝘁𝘀"; 
-  return baseName;
+function formatLogsChannelName() {
+  return "📁⁃l𝗼g𝘀⁃t𝗶𝗰𝗸𝗲𝘁𝘀"; 
 }
 
 client.once('ready', () => {
   console.log(`========================================`);
   console.log(`Bot iniciado con éxito como: ${client.user.tag}`);
   console.log(`Prefijo configurado: /`);
-  console.log(`Listo para bot-hosting.net`);
   console.log(`========================================`);
 });
 
-// COMANDOS DE CONFIGURACIÓN
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  // 1. Comando: /setup @RolSoporte ID_Categoria
   if (message.content.startsWith('/setup')) {
     if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return message.reply('Necesitas permisos de Administrador para usar este comando.');
@@ -105,25 +90,23 @@ client.on('messageCreate', async (message) => {
     return message.reply('Panel de tickets enviado y guardado correctamente.');
   }
 
-  // 2. Comando: /setlogs (Crea el canal de logs automáticamente)
   if (message.content.startsWith('/setlogs')) {
     if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
     try {
       const formattedName = formatLogsChannelName();
 
-      // Crea el canal automáticamente con fuentes especiales y permisos privados
       const logsChannel = await message.guild.channels.create({
         name: formattedName,
         type: ChannelType.GuildText,
         permissionOverwrites: [
           {
             id: message.guild.id,
-            deny: [PermissionFlagsBits.ViewChannel] // Oculto para todos los miembros
+            deny: [PermissionFlagsBits.ViewChannel]
           },
           {
             id: message.author.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] // Visible para Administradores
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
           }
         ]
       });
@@ -131,14 +114,13 @@ client.on('messageCreate', async (message) => {
       config.logsChannelId = logsChannel.id;
       saveConfig();
 
-      return message.reply(`✅ Canal de logs creado automáticamente con tipo de letra personalizado: ${logsChannel}`);
+      return message.reply(`✅ Canal de logs creado automáticamente: ${logsChannel}`);
     } catch (error) {
       console.error(error);
-      return message.reply(' Hubo un error al intentar crear el canal de logs. Verifica los permisos del bot.');
+      return message.reply('Hubo un error al intentar crear el canal de logs.');
     }
   }
 
-  // 3. Comando: /setpanel Título | Descripción
   if (message.content.startsWith('/setpanel')) {
     if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
@@ -153,10 +135,9 @@ client.on('messageCreate', async (message) => {
     config.panelDescription = desc.trim();
     saveConfig();
 
-    return message.reply('Texto del panel actualizado. Vuelve a ejecutar `/setup` para enviar el panel actualizado.');
+    return message.reply('Texto del panel actualizado.');
   }
 
-  // 4. Comando: /setrespuesta Título | Descripción
   if (message.content.startsWith('/setrespuesta')) {
     if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
@@ -174,7 +155,6 @@ client.on('messageCreate', async (message) => {
     return message.reply('Respuesta automática del bot dentro de los tickets actualizada.');
   }
 
-  // RESPUESTA AUTOMÁTICA DENTRO DEL CANAL DE TICKET
   if (message.channel.name.startsWith('ticket-')) {
     const messages = await message.channel.messages.fetch({ limit: 10 });
     const botReplies = messages.filter(
@@ -197,10 +177,8 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// INTERACCIONES (MENÚS Y BOTONES)
 client.on('interactionCreate', async (interaction) => {
 
-  // Creación de Ticket
   if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket_category') {
     const selectedCategory = interaction.values[0];
     const categoryNames = {
@@ -250,7 +228,6 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply({ content: `Tu ticket ha sido creado en ${channel}`, ephemeral: true });
   }
 
-  // Cierre de Ticket y Guardado en Logs
   if (interaction.isButton() && interaction.customId === 'close_ticket') {
     await interaction.reply('Generando archivo de registros y eliminando el canal...');
 
@@ -292,4 +269,5 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(config.token);
+// LOGIN OBLIGATORIO MEDIANTE VARIABLE DE ENTORNO EN RENDER
+client.login(process.env.BOT_TOKEN);
