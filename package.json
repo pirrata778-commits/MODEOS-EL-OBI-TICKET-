@@ -1,0 +1,12 @@
+{
+  "name": "bot-tickets-configurable",
+  "version": "1.0.0",
+  "description": "Bot de Tickets configurable con menús desplegables y logs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0"
+  }
+}

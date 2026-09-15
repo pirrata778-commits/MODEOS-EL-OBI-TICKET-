@@ -1,0 +1,13 @@
+{
+  "token": "PEGA_AQUI_TU_TOKEN_DE_DISCORD",
+  "ticketChannelId": "",
+  "categoryId": "",
+  "supportRoleId": "",
+  "logsChannelId": "",
+  "panelTitle": "📌 Centro de Soporte",
+  "panelDescription": "Selecciona el motivo de tu consulta en el menú desplegable para abrir un ticket privado.",
+  "ticketWelcomeTitle": "¡Bienvenido a Soporte!",
+  "ticketWelcomeDesc": "Explica tu consulta detalladamente a continuación. Un miembro del equipo te atenderá pronto.",
+  "autoReplyTitle": "🤖 Confirmación Registrada",
+  "autoReplyDesc": "Hemos registrado tu consulta:\n\n> *\"{mensaje}\"*\n\nUn agente de soporte te responderá en breve."
+}
