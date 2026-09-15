@@ -23,7 +23,7 @@ http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Bot activo 24/7');
 }).listen(process.env.PORT || 10000, () => {
-  console.log('Servidor HTTP iniciado correctamente.');
+  console.log('Servidor HTTP iniciado correctamente para el plan gratuito.');
 });
 
 const client = new Client({
@@ -34,7 +34,7 @@ const client = new Client({
   ]
 });
 
-// Definición de Comandos Slash para el menú emergente de Discord
+// Definición de Comandos Slash para el menú desplegable
 const commands = [
   new SlashCommandBuilder()
     .setName('setup')
@@ -67,7 +67,7 @@ client.once('ready', async () => {
   console.log(`Bot iniciado con éxito como: ${client.user.tag}`);
   console.log(`========================================`);
 
-  // Registrar comandos Slash globales en Discord
+  // Registrar comandos Slash globales en la API de Discord
   const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
   try {
     console.log('Cargando comandos slash en Discord...');
@@ -81,155 +81,108 @@ client.once('ready', async () => {
   }
 });
 
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
+// Evento que responde a las Interacciones (Comandos Slash, Menús desplegables y Botones)
+client.on('interactionCreate', async (interaction) => {
+  // 1. Manejo de Comandos Slash (Menú flotante de Discord)
+  if (interaction.isChatInputCommand()) {
+    const { commandName } = interaction;
 
-  if (message.content.startsWith('/setup')) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply('Necesitas permisos de Administrador para usar este comando.');
-    }
+    if (commandName === 'setup') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({ content: 'Necesitas permisos de Administrador.', ephemeral: true });
+      }
 
-    const args = message.content.split(/ +/).slice(1);
-    const role = message.mentions.roles.first();
-    const categoryId = args[1];
+      const role = interaction.options.getRole('rol');
+      const categoryId = interaction.options.getString('categoria');
 
-    if (!role || !categoryId) {
-      return message.reply('Uso correcto: `/setup @RolSoporte ID_Categoria`');
-    }
-
-    config.supportRoleId = role.id;
-    config.categoryId = categoryId;
-    config.ticketChannelId = message.channel.id;
-    saveConfig();
-
-    const embed = new EmbedBuilder()
-      .setTitle(config.panelTitle)
-      .setDescription(config.panelDescription)
-      .setColor('#5865F2');
-
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId('select_ticket_category')
-      .setPlaceholder('Selecciona una opción...')
-      .addOptions(
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Soporte Técnico')
-          .setDescription('Ayuda con errores, problemas o configuración')
-          .setValue('soporte')
-          .setEmoji('🛠️'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Facturación / Compras')
-          .setDescription('Dudas sobre pagos, donaciones o tienda')
-          .setValue('compras')
-          .setEmoji('💳'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Reportes')
-          .setDescription('Denuncia a un usuario o mal comportamiento')
-          .setValue('reportes')
-          .setEmoji('🛑')
-      );
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-    await message.channel.send({ embeds: [embed], components: [row] });
-    return message.reply('Panel de tickets enviado y guardado correctamente.');
-  }
-
-  if (message.content.startsWith('/setlogs')) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-    try {
-      const formattedName = formatLogsChannelName();
-
-      const logsChannel = await message.guild.channels.create({
-        name: formattedName,
-        type: ChannelType.GuildText,
-        permissionOverwrites: [
-          {
-            id: message.guild.id,
-            deny: [PermissionFlagsBits.ViewChannel]
-          },
-          {
-            id: message.author.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-          }
-        ]
-      });
-
-      config.logsChannelId = logsChannel.id;
+      config.supportRoleId = role.id;
+      config.categoryId = categoryId;
+      config.ticketChannelId = interaction.channel.id;
       saveConfig();
 
-      return message.reply(`✅ Canal de logs creado automáticamente: ${logsChannel}`);
-    } catch (error) {
-      console.error(error);
-      return message.reply('Hubo un error al intentar crear el canal de logs.');
+      const embed = new EmbedBuilder()
+        .setTitle(config.panelTitle)
+        .setDescription(config.panelDescription)
+        .setColor('#5865F2');
+
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('select_ticket_category')
+        .setPlaceholder('Selecciona una opción...')
+        .addOptions(
+          new StringSelectMenuOptionBuilder().setLabel('Soporte Técnico').setDescription('Ayuda con errores').setValue('soporte').setEmoji('🛠️'),
+          new StringSelectMenuOptionBuilder().setLabel('Facturación / Compras').setDescription('Dudas sobre pagos').setValue('compras').setEmoji('💳'),
+          new StringSelectMenuOptionBuilder().setLabel('Reportes').setDescription('Denuncia a un usuario').setValue('reportes').setEmoji('🛑')
+        );
+
+      const row = new ActionRowBuilder().addComponents(selectMenu);
+
+      await interaction.channel.send({ embeds: [embed], components: [row] });
+      return interaction.reply({ content: 'Panel enviado correctamente.', ephemeral: true });
+    }
+
+    if (commandName === 'setlogs') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+      try {
+        const formattedName = formatLogsChannelName();
+        const logsChannel = await interaction.guild.channels.create({
+          name: formattedName,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+          ]
+        });
+
+        config.logsChannelId = logsChannel.id;
+        saveConfig();
+
+        return interaction.reply({ content: `✅ Canal de logs creado: ${logsChannel}`, ephemeral: true });
+      } catch (error) {
+        console.error(error);
+        return interaction.reply({ content: 'Error al crear el canal de logs.', ephemeral: true });
+      }
+    }
+
+    if (commandName === 'setpanel') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+      const text = interaction.options.getString('texto');
+      const [title, desc] = text.split('|');
+
+      if (!title || !desc) {
+        return interaction.reply({ content: 'Uso correcto: `Título | Descripción`', ephemeral: true });
+      }
+
+      config.panelTitle = title.trim();
+      config.panelDescription = desc.trim();
+      saveConfig();
+
+      return interaction.reply({ content: 'Texto del panel actualizado.', ephemeral: true });
+    }
+
+    if (commandName === 'setrespuesta') {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+      const text = interaction.options.getString('texto');
+      const [title, desc] = text.split('|');
+
+      if (!title || !desc) {
+        return interaction.reply({ content: 'Uso correcto: `Título | Texto con {mensaje}`', ephemeral: true });
+      }
+
+      config.autoReplyTitle = title.trim();
+      config.autoReplyDesc = desc.trim();
+      saveConfig();
+
+      return interaction.reply({ content: 'Respuesta automática actualizada.', ephemeral: true });
     }
   }
 
-  if (message.content.startsWith('/setpanel')) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-    const text = message.content.slice(9).trim();
-    const [title, desc] = text.split('|');
-
-    if (!title || !desc) {
-      return message.reply('Uso correcto: `/setpanel Título del Panel | Descripción del Panel`');
-    }
-
-    config.panelTitle = title.trim();
-    config.panelDescription = desc.trim();
-    saveConfig();
-
-    return message.reply('Texto del panel actualizado.');
-  }
-
-  if (message.content.startsWith('/setrespuesta')) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-    const text = message.content.slice(13).trim();
-    const [title, desc] = text.split('|');
-
-    if (!title || !desc) {
-      return message.reply('Uso correcto: `/setrespuesta Título de Respuesta | Texto con {mensaje}`');
-    }
-
-    config.autoReplyTitle = title.trim();
-    config.autoReplyDesc = desc.trim();
-    saveConfig();
-
-    return message.reply('Respuesta automática del bot dentro de los tickets actualizada.');
-  }
-
-  if (message.channel.name.startsWith('ticket-')) {
-    const messages = await message.channel.messages.fetch({ limit: 10 });
-    const botReplies = messages.filter(
-      m => m.author.id === client.user.id && 
-      m.embeds.length > 0 && 
-      m.embeds[0].title === config.autoReplyTitle
-    );
-
-    if (botReplies.size === 0) {
-      const customDescription = config.autoReplyDesc.replace('{mensaje}', message.content);
-
-      const autoReplyEmbed = new EmbedBuilder()
-        .setTitle(config.autoReplyTitle)
-        .setDescription(customDescription)
-        .setColor('#FEE75C')
-        .setTimestamp();
-
-      await message.channel.send({ embeds: [autoReplyEmbed] });
-    }
-  }
-});
-
-client.on('interactionCreate', async (interaction) => {
-
+  // 2. Creación de Tickets vía Menú Desplegable
   if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket_category') {
     const selectedCategory = interaction.values[0];
-    const categoryNames = {
-      soporte: 'Soporte Técnico',
-      compras: 'Facturación y Compras',
-      reportes: 'Reportes'
-    };
+    const categoryNames = { soporte: 'Soporte Técnico', compras: 'Facturación y Compras', reportes: 'Reportes' };
 
     const channelName = `ticket-${interaction.user.username.toLowerCase()}`;
     const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
@@ -263,26 +216,18 @@ client.on('interactionCreate', async (interaction) => {
 
     const row = new ActionRowBuilder().addComponents(closeButton);
 
-    await channel.send({ 
-      content: `<@${interaction.user.id}> | Notificando a <@&${config.supportRoleId}>`, 
-      embeds: [embed], 
-      components: [row] 
-    });
-
+    await channel.send({ content: `<@${interaction.user.id}> | Notificando a <@&${config.supportRoleId}>`, embeds: [embed], components: [row] });
     await interaction.reply({ content: `Tu ticket ha sido creado en ${channel}`, ephemeral: true });
   }
 
+  // 3. Cierre de Tickets vía Botón
   if (interaction.isButton() && interaction.customId === 'close_ticket') {
     await interaction.reply('Generando archivo de registros y eliminando el canal...');
 
     const fetchedMessages = await interaction.channel.messages.fetch({ limit: 100 });
     const sortedMessages = Array.from(fetchedMessages.values()).reverse();
 
-    let transcriptText = `==================================================\n`;
-    transcriptText += `TRANSCRIPCIÓN DE LOGS: ${interaction.channel.name}\n`;
-    transcriptText += `FECHA DE CIERRE: ${new Date().toLocaleString()}\n`;
-    transcriptText += `CERRADO POR: ${interaction.user.tag} (${interaction.user.id})\n`;
-    transcriptText += `==================================================\n\n`;
+    let transcriptText = `==================================================\nTRANSCRIPCIÓN DE LOGS: ${interaction.channel.name}\nFECHA DE CIERRE: ${new Date().toLocaleString()}\nCERRADO POR: ${interaction.user.tag} (${interaction.user.id})\n==================================================\n\n`;
 
     sortedMessages.forEach(msg => {
       const timestamp = new Date(msg.createdTimestamp).toLocaleString();
@@ -298,10 +243,7 @@ client.on('interactionCreate', async (interaction) => {
       if (logsChannel) {
         const logEmbed = new EmbedBuilder()
           .setTitle('📜 Ticket Cerrado')
-          .addFields(
-            { name: 'Canal', value: interaction.channel.name, inline: true },
-            { name: 'Cerrado por', value: `<@${interaction.user.id}>`, inline: true }
-          )
+          .addFields({ name: 'Canal', value: interaction.channel.name, inline: true }, { name: 'Cerrado por', value: `<@${interaction.user.id}>`, inline: true })
           .setColor('#ED4245')
           .setTimestamp();
 
@@ -310,6 +252,32 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+  }
+});
+
+// Respuestas automáticas en mensajes normales dentro del ticket
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.channel.name && message.channel.name.startsWith('ticket-')) {
+    const messages = await message.channel.messages.fetch({ limit: 10 });
+    const botReplies = messages.filter(
+      m => m.author.id === client.user.id && 
+      m.embeds.length > 0 && 
+      m.embeds[0].title === config.autoReplyTitle
+    );
+
+    if (botReplies.size === 0 && config.autoReplyTitle) {
+      const customDescription = config.autoReplyDesc.replace('{mensaje}', message.content);
+
+      const autoReplyEmbed = new EmbedBuilder()
+        .setTitle(config.autoReplyTitle)
+        .setDescription(customDescription)
+        .setColor('#FEE75C')
+        .setTimestamp();
+
+      await message.channel.send({ embeds: [autoReplyEmbed] });
+    }
   }
 });
 
