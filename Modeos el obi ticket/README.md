@@ -59,7 +59,7 @@ El archivo `render.yaml` define un **Background Worker Docker** con disco persis
 2. En Render, selecciona **New → Blueprint** y conecta el repositorio. Render detectará `render.yaml`.
 3. Al crear el servicio, rellena `DISCORD_TOKEN` y `DISCORD_APPLICATION_ID`. En **Environment** puedes añadir `DISCORD_TEST_GUILD_ID` para registrar comandos en un servidor de pruebas y `AI_API_KEY` si quieres activar respuestas de IA.
 4. Crea el servicio y espera a que termine el primer deploy.
-5. En la Shell del servicio, ejecuta `node src/deploy-commands.js` para registrar los comandos slash.
+5. Al arrancar, el bot registra automáticamente los comandos slash. Si configuras `DISCORD_TEST_GUILD_ID` en Environment, los publica en ese servidor para que aparezcan enseguida; sin ese ID los registra globalmente y Discord puede tardar en propagarlos.
 
 El worker se mantiene conectado a Discord y no necesita tráfico HTTP entrante. El archivo de entorno local no se sube: los secretos se configuran en Render. El disco persistente tiene 1 GB inicialmente; puede ampliarse desde la configuración de Render.
 

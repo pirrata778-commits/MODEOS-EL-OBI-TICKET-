@@ -1,8 +1,9 @@
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits, REST, Routes } = require('discord.js');
 const config = require('./config');
+const commands = require('./commands');
 const { db, statements, ensureSettings, parseSettings, logEvent } = require('./database');
 const { handleInteraction, aiErrorMessage } = require('./handlers/interactions');
 const { answerTicket } = require('./services/ai');
@@ -30,10 +31,20 @@ const healthServer = http.createServer((request, response) => {
 });
 healthServer.listen(config.port, '0.0.0.0', () => console.log(`Health endpoint escuchando en :${config.port}`));
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`MODEOS EL OBI TICKETS conectado como ${client.user.tag}`);
   console.log(`IA ${config.aiGlobalEnabled ? 'habilitada por configuración' : 'deshabilitada'}; proveedor ${config.aiProvider}.`);
   if (!config.aiApiKey) console.warn('AI_API_KEY no está configurada; los tickets funcionan y la IA permanecerá disponible para activarse después.');
+  try {
+    const rest = new REST({ version: '10' }).setToken(config.token);
+    const route = config.testGuildId
+      ? Routes.applicationGuildCommands(config.applicationId, config.testGuildId)
+      : Routes.applicationCommands(config.applicationId);
+    await rest.put(route, { body: commands });
+    console.log(`Registrados ${commands.length} comandos ${config.testGuildId ? 'en el servidor de pruebas' : 'globalmente'}.`);
+  } catch (error) {
+    console.error('No se pudieron registrar los comandos slash al arrancar:', error.message);
+  }
   for (const guild of client.guilds.cache.values()) {
     const settings = parseSettings(ensureSettings(guild.id));
     const channels = await guild.channels.fetch().catch(error => {
