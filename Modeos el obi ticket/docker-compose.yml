@@ -1,0 +1,20 @@
+services:
+  bot:
+    build: .
+    container_name: modeos-el-obi-tickets
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/tickets.sqlite
+    volumes:
+      - ticket-data:/app/data
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+volumes:
+  ticket-data:

@@ -1,0 +1,30 @@
+services:
+  - type: worker
+    name: modeos-el-obi-tickets
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    maxShutdownDelaySeconds: 120
+    disk:
+      name: ticket-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_APPLICATION_ID
+        sync: false
+      - key: AI_ENABLED
+        value: "true"
+      - key: AI_PROVIDER
+        value: openai
+      - key: AI_MODEL
+        value: gpt-4.1-mini
+      - key: AI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: DATABASE_PATH
+        value: /app/data/tickets.sqlite
+      - key: TRANSCRIPT_RETENTION_DAYS
+        value: "90"
